@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.68"
 async-stream = "0.3.3"
+async-trait = "0.1.62"
 bytes = "1.3.0"
 clap = { version = "4", features = ["derive"] }
 der = { version = "0.6.1", features = ["alloc", "derive"] }

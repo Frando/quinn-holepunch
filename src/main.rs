@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use quinn::{Connecting, RecvStream, SendStream};
-use quinn_holepunch::Endpoint;
+use quinn_holepunch::{Endpoint, rendevouz::rendevouz_server};
 use tracing::{error, info};
 
 #[derive(Parser, Debug, Clone)]
@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
     match cli.command {
         Command::Rendevouz { addr } => {
             let addr = addr.unwrap_or_else(|| "0.0.0.0:3033".parse().unwrap());
-            quinn_holepunch::rendevouz_server(addr).await?;
+            rendevouz_server(addr).await?;
         }
         Command::Listen {
             addr,
@@ -78,8 +78,11 @@ async fn main() -> Result<()> {
                     }
                 });
             }
-        },
-        Command::ConnectRendevouz { rendevouz_addr, peer_id } => {
+        }
+        Command::ConnectRendevouz {
+            rendevouz_addr,
+            peer_id,
+        } => {
             info!("Connect to {peer_id} via {rendevouz_addr}");
             let bind_addr: SocketAddr = "0.0.0.0:0".parse().unwrap();
             let local_id = random_string();
@@ -92,7 +95,6 @@ async fn main() -> Result<()> {
         Command::ConnectDirect { addr } => {
             info!("Connect to {addr}");
             unimplemented!()
-
         }
     }
     Ok(())
