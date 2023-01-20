@@ -4,6 +4,8 @@ holepuncheable quic sockets through a rendevouz server
 
 **WIP**
 
+*Note: Currently configured to not check any TLS certificates, so insecure at the moment. Focus is on the holepunching first.*
+
 ## usage
 
 on a public machine:
