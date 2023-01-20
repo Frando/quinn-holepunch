@@ -8,15 +8,15 @@ holepuncheable quic sockets through a rendevouz server
 
 on a public machine:
 ```
-quic-holepunch rendevouz
+quinn-holepunch rendevouz
 ```
 
 on a machine behind a nat:
 ```
-quic-holepunch listen -r RENDEVOUZ_IP:3033 -p foo
+quinn-holepunch listen -r RENDEVOUZ_IP:3033 -p foo
 ```
 
 on another machine behind another nat:
 ```
-quic-holepunch connect-rendevouz -r RENDEVOUZ_IP:3033 -p foo
+quinn-holepunch connect-rendevouz -r RENDEVOUZ_IP:3033 -p foo
 ```
