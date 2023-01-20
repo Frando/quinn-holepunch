@@ -107,9 +107,10 @@ impl Endpoint {
 
     pub async fn connect_rendevouz(&self, peer_id: PeerId) -> anyhow::Result<Connecting> {
         let (tx, rx) = oneshot::channel();
-        let req = RendevouzRequest { peer_id, reply: tx };
+        let req = RendevouzRequest { peer_id: peer_id.clone(), reply: tx };
         self.rendevouz_tx.send(req).await?;
         let addr = rx.await??;
+        info!("found addr for {peer_id}: {addr}");
         let connecting = self.endpoint.connect(addr, SERVER_NAME)?;
         Ok(connecting)
     }

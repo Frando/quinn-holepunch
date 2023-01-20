@@ -1,9 +1,13 @@
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{
+    collections::{HashMap},
+    net::SocketAddr,
+    sync::Arc,
+};
 
 use async_stream::try_stream;
 use async_trait::async_trait;
 use futures::{stream::BoxStream, Stream, StreamExt};
-use quinn::{Connecting, Connection, RecvStream, SendStream, Endpoint};
+use quinn::{Connecting, Connection, Endpoint, RecvStream, SendStream};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::{debug, error, info};
@@ -57,6 +61,7 @@ impl RendevouzService for SimpleQuicRendevouz {
 
     async fn announce(&self, local_id: PeerId) -> anyhow::Result<Self::AnnounceStream> {
         let (send, recv) = self.conn.open_bi().await?;
+        let conn = self.conn.clone();
         let stream = try_stream! {
             let msg = Message::Listen(local_id);
             msg.send(send).await?;
@@ -64,6 +69,16 @@ impl RendevouzService for SimpleQuicRendevouz {
             let global_addr = reply.as_accepted()?;
             debug!("Found our global adddress: {global_addr}");
             yield AnnounceReply::GlobalAddress(global_addr);
+            loop {
+                let stream = conn.accept_uni().await?;
+                let msg = Message::recv(stream).await?;
+                let addr = msg.as_incoming()?;
+                debug!("new connection request from rendevouz server: from {addr}");
+                yield AnnounceReply::Knock(Knock {
+                    addr,
+                    peer_id: None
+                });
+            }
         };
         Ok(stream.boxed())
     }
@@ -106,12 +121,12 @@ impl Message {
         }
     }
 
-    // fn as_incoming(self) -> anyhow::Result<SocketAddr> {
-    //     match self {
-    //         Self::Incoming(addr) => Ok(addr),
-    //         _ => anyhow::bail!("Invalid message"),
-    //     }
-    // }
+    fn as_incoming(self) -> anyhow::Result<SocketAddr> {
+        match self {
+            Self::Incoming(addr) => Ok(addr),
+            _ => anyhow::bail!("Invalid message"),
+        }
+    }
 }
 
 type RendevouzState = Arc<RwLock<HashMap<PeerId, Connection>>>;
@@ -136,10 +151,12 @@ pub async fn rendevouz_server(bind_addr: SocketAddr) -> anyhow::Result<()> {
 
 async fn on_connection(conn: Connecting, state: RendevouzState) -> anyhow::Result<()> {
     let conn = conn.await?;
+    // let mut peer_ids: HashSet<PeerId> = HashSet::new();
     while let Ok((send, recv)) = conn.accept_bi().await {
         let message = Message::recv(recv).await?;
         match message {
             Message::Listen(peer_id) => {
+                // peer_ids.insert(peer_id.clone());
                 let addr = conn.remote_address();
                 debug!("Listen: {peer_id} -> {addr}");
                 let mut state = state.write().await;
@@ -187,5 +204,12 @@ async fn on_connection(conn: Connecting, state: RendevouzState) -> anyhow::Resul
             }
         }
     }
+
+    // TODO: Expire peer ids.
+    // let mut state = state.write().await;
+    // for peer_id in peer_ids.iter() {
+    //     state.remove(peer_id);
+    // }
+
     Ok(())
 }
